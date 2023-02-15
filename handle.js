@@ -1,5 +1,7 @@
 const $ = document.querySelector.bind(document);
 const $$ = document.querySelectorAll.bind(document);
+
+const PLAYER_STORAGE_KEY = "F8_PLAYER";
 // variable
 const cd = $(".cd");
 const heading = $("header h2");
@@ -12,6 +14,7 @@ const nextBtn = $(".btn-next");
 const prevBtn = $(".btn-prev");
 const randomBtn = $(".btn-random");
 const repeatBtn = $(".btn-repeat");
+const playlist = $(".playlist");
 
 const app = {
     // lay bai hat dau tien
@@ -19,6 +22,7 @@ const app = {
     isPlaying: false,
     isRandom: false,
     isRepeat: false,
+    config: JSON.parse(localStorage.getItem(PLAYER_STORAGE_KEY)) || {},
     songs: [
         {
             name: "Chúng ta của hiện tại",
@@ -87,13 +91,22 @@ const app = {
             image: "images/tinhyeubatcomrang.jpg",
         },
     ],
+    // Luu cau hing
+    setConfig: function (key, value) {
+        this.config[key] = value;
+        localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(this.config));
+    },
 
     // render html
     render: function () {
-        const htmls = this.songs.map((song) => {
+        const htmls = this.songs.map((song, index) => {
             return `
-            <div class="song">
-                <div class="thumb" style="background-image: url('${song.image}')">
+            <div class="song ${
+                index === this.currentIndex ? "active" : ""
+            }" data-index="${index}">
+                <div class="thumb" style="background-image: url('${
+                    song.image
+                }')">
                 </div>
                 <div class="body">
                     <h3 class="title">${song.name}</h3>
@@ -105,7 +118,7 @@ const app = {
             </div>
             `;
         });
-        $(".playlist").innerHTML = htmls.join("");
+        playlist.innerHTML = htmls.join("");
     },
     // dinh nghia cac thuoc tinh
     defineProperty: function () {
@@ -179,6 +192,8 @@ const app = {
                 _this.nextSong();
             }
             audio.play();
+            _this.render();
+            _this.scrollTopActiveSong();
         };
         // Back song
         prevBtn.onclick = function () {
@@ -188,15 +203,19 @@ const app = {
                 _this.prevSong();
             }
             audio.play();
+            _this.render();
+            _this.scrollTopActiveSong();
         };
         // Xu ly khi random song
         randomBtn.onclick = function (e) {
             _this.isRandom = !_this.isRandom;
+            _this.setConfig("isRandom", _this.isRandom);
             randomBtn.classList.toggle("active", _this.isRandom);
         };
-        // XU ly khi lap lai 1 bai hat
+        // Xu ly khi lap lai 1 bai hat
         repeatBtn.onclick = function () {
             _this.isRepeat = !_this.isRepeat;
+            _this.setConfig("isRepeat", _this.isRepeat);
             repeatBtn.classList.toggle("active", _this.isRepeat);
         };
         // Xu ly khi ket thu mot bai khac tu chuyen
@@ -207,11 +226,41 @@ const app = {
                 nextBtn.click();
             }
         };
+        //lang nghe hanh vi click vao playlist
+        playlist.onclick = function (e) {
+            // Xu ly khi click vao song
+            const songNode = e.target.closest(".song:not(.active");
+            if (songNode || e.target.closest(".option")) {
+                if (songNode) {
+                    _this.currentIndex = Number(songNode.dataset.index);
+                    _this.loadCurrentSong();
+                    _this.render();
+                    audio.play();
+                }
+
+                // Xu ly khi bam vao option
+                if (e.target.closest(".option")) {
+                    console.log(123);
+                }
+            }
+        };
+    },
+    scrollTopActiveSong: function () {
+        setTimeout(function () {
+            $(".song.active").scrollIntoView({
+                behavior: "smooth",
+                block: "nearest",
+            });
+        }, 300);
     },
     loadCurrentSong: function () {
         heading.textContent = this.currentSong.name;
         cdThumb.style.backgroundImage = `url('${this.currentSong.image}')`;
         audio.src = this.currentSong.path;
+    },
+    loadConfig: function () {
+        this.isRandom = this.config.isRandom;
+        this.isRepeat = this.config.isRepeat;
     },
     nextSong: function () {
         this.currentIndex++;
@@ -236,6 +285,8 @@ const app = {
         this.loadCurrentSong();
     },
     start: function () {
+        // Gan cau hinh tu config vao ung dung
+        this.loadConfig();
         // dinh nghia cac thuoc tinh cho object
         this.defineProperty();
         // lang nghe / su ly cac su kien
@@ -244,6 +295,9 @@ const app = {
         this.loadCurrentSong();
         // render playlist
         this.render();
+        // Hien thi trang thai ban dau cua repeat va random
+        repeatBtn.classList.toggle("active", this.isRepeat);
+        randomBtn.classList.toggle("active", this.isRandom);
     },
 };
 app.start();
